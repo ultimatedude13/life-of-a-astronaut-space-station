@@ -18,7 +18,7 @@ Become a skilled astronaut by completing tasks, maintaining the station, and ove
 
 ## 🛠️ Development
 
-This project is being developed as a 3D simulation and exploration game focused on creating an exciting and immersive space experience.
+This project is being developed as a 3D simulation and exploration game focused on creating an exciting and immersive space experience. It is currently in INDEV.
 
 ## 📷 Screenshots
 
