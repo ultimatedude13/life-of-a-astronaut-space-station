@@ -1059,7 +1059,21 @@ if (m.hp <= 0) { const bad = ['pow', 'food', 'nrg'].find(k => m[k] <= 0); finish
   }
 
   /* ------------------------------------------------------------ game states */
-  function begin() { initAudio(); clearWorld(); reset(); state = 'play'; ov.hidden = true; last = performance.now(); cam.d = 16; cam.tx = S.p.x; cam.tz = S.p.z; hud(); }
+ function begin() {
+  initAudio();
+  clearWorld();
+  reset();
+  state = 'play';
+  ov.hidden = true;
+  last = performance.now();
+  cam.d = 16;
+  cam.tx = S.p.x;
+  cam.tz = S.p.z;
+  hud();
+
+  fetch('https://api.countapi.xyz/hit/ultimatedude13-life-of-an-astronaut/plays')
+    .catch(() => {});
+}
   function intro() {
     clearWorld(); reset(); state = 'intro'; hud();
     overlay('<h2>Five days aboard Meridian Station</h2>' +
