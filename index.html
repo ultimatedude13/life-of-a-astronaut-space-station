@@ -937,8 +937,9 @@ button:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
 
     S.npcs.forEach(n => updateNPC(n, dt));
 
-    if (m.hp <= 0) { const bad = ['o2', 'pow', 'food', 'nrg'].find(k => m[k] <= 0); finish(false, LOSS[bad || 'hp']); return; }
-    if (S.h >= START_H + DAYS * 24) finish(true);
+    if (m.o2 <= 0) { finish(false, LOSS.o2); return; }
+if (m.hp <= 0) { const bad = ['pow', 'food', 'nrg'].find(k => m[k] <= 0); finish(false, LOSS[bad || 'hp']); return; }
+    if (S.h >= START_H + DAYS * 6) finish(true);
   }
 
   /* ----------------------------------------------------------------- render */
