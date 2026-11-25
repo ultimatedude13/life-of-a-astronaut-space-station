@@ -1,6 +1,6 @@
 # 🚀 Life as an Astronaut: Space Station
 
-**Life as an Astronaut: Space Station** is a 3D space adventure game where you live and work aboard a futuristic space station. Complete missions, explore different station modules, manage resources, and experience daily life as an astronaut in orbit.
+**Life as an Astronaut: Space Station** is a 3D space adventure game where you live and work aboard a futuristic space station. Complete missions, explore different station modules, manage resources, and experience daily life as an astronaut in orbit. Currently Life of a Astronaut: Space Station is down. There will be a fix released as soon as possible.
 
 ## 🌌 Features
 
