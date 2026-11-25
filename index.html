@@ -1120,7 +1120,13 @@ if (m.hp <= 0) { const bad = ['pow', 'food', 'nrg'].find(k => m[k] <= 0); finish
   const endDrag = () => { drag = null; cv.style.cursor = 'grab'; };
   cv.addEventListener('pointerup', endDrag); cv.addEventListener('pointercancel', endDrag);
   cv.addEventListener('wheel', e => { e.preventDefault(); cam.dist = clamp(cam.dist + e.deltaY * .01, 7, 19); }, { passive: false });
-
+  fetch('https://api.countapi.xyz/get/ultimatedude13-life-of-an-astronaut/plays')
+  .then(response => response.json())
+  .then(data => {
+    document.getElementById('plays').textContent =
+      data.value.toLocaleString() + ' / 5,000';
+  })
+  .catch(() => {});
   /* ------------------------------------------------------------------- loop */
   function frame(now) {
     const dt = Math.min(.05, (now - last) / 1000 || 0); last = now;
