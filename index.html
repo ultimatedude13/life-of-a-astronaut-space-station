@@ -936,7 +936,11 @@ async function ctrlD() {
   last = performance.now();
   hud();
   lockPointer();
-
+const playTotal = await incrementPlayCount();
+if (playTotal !== null) {
+  // ...
+  el.textContent = 'Total plays worldwide: ' + playTotal;
+}
   const total = await incrementPlayCount();
   if (total !== null) {
     const el = $('online');
