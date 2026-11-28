@@ -139,6 +139,7 @@ button:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
@@ -917,8 +918,44 @@ function overlays() {
   barEl.style.display = 'none'; const pr = promptFor(findTarget()); if (!pr) { promptEl.hidden = true; crossEl.className = ''; } else { promptEl.hidden = false; promptEl.textContent = pr.txt; crossEl.className = pr.ok ? 'hot' : ''; }
 }
 /* ---------- states ---------- */
-let locked = false, wasLocked = false;
-const PLAYER_API = ''; // set to a URL returning JSON like {"players": 42} to show the live worldwide count
+const SUPABASE_URL = 'https://owkvneubydrvzalyltep.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_Ep6xTLI8BGTvV7CKrNTu_Q_mNrQvDCg.';
+async function ctrlD() {
+  S.skipH = (S.skipH || 0) + 3;
+  const el = $('online');
+  el.hidden = false;
+  el.textContent = 'Skipping 3 hours...';
+  clearTimeout(onlineT);
+
+ async function begin() {
+  initAudio();
+  reset();
+  faultLights.forEach(l => { l.used = false; l.intensity = 0; });
+  state = 'play';
+  ov.hidden = true;
+  last = performance.now();
+  hud();
+  lockPointer();
+
+  const total = await incrementPlayCount();
+  if (total !== null) {
+    const el = $('online');
+    el.hidden = false;
+    el.textContent = 'Total plays worldwide: ' + total;
+    clearTimeout(onlineT);
+    onlineT = setTimeout(() => { el.hidden = true; }, 5000);
+} 
+ const total = await getPlayCount();
+  el.textContent = '+3 hours skipped · ' +
+    (total === null ? 'Total plays: connection error' : 'Total plays worldwide: ' + total);
+
+  onlineT = setTimeout(() => { el.hidden = true; }, 5000);
+}
+
+async function getPlayCount() {
+  const { data, error } = await supabase.rpc('get_play_count');
+  return error ? null : data;
+}
 let onlineT = 0;
 async function ctrlD() {
   S.skipH = (S.skipH || 0) + 3; const el = $('online'); el.hidden = false; el.textContent = 'Skipping 3 hours...'; clearTimeout(onlineT);
