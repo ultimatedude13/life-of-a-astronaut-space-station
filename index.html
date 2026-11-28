@@ -1,10 +1,4 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<style>html { color-scheme: dark; background: #0a0e15; } body { margin: 0; }</style>
-<title>Life of an Astronaut</title>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>html{color-scheme:dark;background:#0a0e15}body{margin:0}</style><title>Life of an Astronaut</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
@@ -93,6 +87,7 @@ button:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
 @media (hover: none), (max-width: 860px) { .touch { display: flex; } .keys { display: none; } }
 @media (max-width: 860px) { .layout { grid-template-columns: minmax(0, 1fr); } .screen { aspect-ratio: 4 / 3; } .clock { text-align: left; } .hright { width: 100%; justify-content: space-between; } }
 @media (prefers-reduced-motion: reduce) { .fill, #flash, #fade, #visor { transition: none; } }
+#online{position:absolute;top:56px;left:50%;transform:translateX(-50%);padding:10px 16px;border:1px solid #2f4260;border-radius:8px;background:rgba(10,14,21,.88);color:#d9e6ff;font:13px "IBM Plex Mono",monospace;text-align:center;z-index:5;pointer-events:none;max-width:90%}
 </style>
 
 </head>
@@ -101,6 +96,7 @@ button:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
   <header>
     <div><h1>Life of an Astronaut</h1><p class="sub">Meridian Station · Low Earth Orbit</p></div>
     <div class="hright">
+      <button class="ghost" id="moveBtn" type="button">Move: Normal</button>
       <button class="ghost" id="viewBtn" type="button">View: 1st person</button>
       <button class="ghost" id="snd" type="button">Sound: on</button>
       <div class="clock"><span id="dayLabel">Mission day 1 of 5</span><b id="met">06:00</b></div>
@@ -113,6 +109,7 @@ button:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
         <div id="cross"></div>
         <div id="prompt" hidden></div>
         <div id="flash"></div>
+        <div id="online" hidden></div>
         <div id="bar"><i></i></div>
         <canvas id="radar" width="208" height="208" aria-label="Direction finder for station modules"></canvas>
         <div id="suit"><span>SUIT O&#8322;</span><div class="track"><div class="fill" id="suitO2"></div></div></div>
@@ -137,7 +134,7 @@ button:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
       <div class="stats"><div><b id="sci">0</b><span>Science / 250</span></div><div><b id="packs">10</b><span>Meal packs</span></div></div>
       <div><h2>Crew</h2><ul id="crew"></ul></div>
       <div><h2>Flight log</h2><ol id="log" aria-live="polite"></ol></div>
-      <p class="keys">Fly: WASD · Rise / sink: Space, C · Look: mouse (click view) or drag · Roll: Q, R · Brake: X · Act: E or F · View: V · Pause: P</p>
+      <p class="keys">Move: WASD (Shift to sprint) · Jump / climb: Space, C · Look: mouse · Act: E or F · View: V · Movement mode: G · Pause: P</p>
     </aside>
   </div>
 </div>
@@ -334,7 +331,12 @@ function projectIn(p, out) {
 const DOME = { c: V(0, 0, 7.4), r: 1.6 };
 function resolve(P) {
   const q = V(0, 0, 0), d = projectIn(P.pos, q);
-  if (d > 1e-5) { const n = P.pos.clone().sub(q).normalize(); P.pos.copy(q); const vn = P.vel.dot(n); if (vn > 0) { P.vel.addScaledVector(n, -(1.35) * vn); if (vn > 1.2) bump(vn); } }
+  if (d > 1e-5) { const n = P.pos.clone().sub(q).normalize(); P.pos.copy(q); const vn = P.vel.dot(n); if (P.normal && n.y < -.5) P.ground = true; if (vn > 0) { P.vel.addScaledVector(n, -vn); if (vn > 1.2) bump(vn); } }
+}
+function inShaft(p) {
+  if (Math.hypot(p.x, p.z) < 1.3 && Math.abs(p.y) < 2.8) return true;
+  for (const k of COL) if (k.ax === 1 && Math.abs(p.y) > 2.2 && p.y >= k.lo && p.y <= k.hi && Math.hypot(p.x - k.c.x, p.z - k.c.z) <= k.r + .05) return true;
+  return false;
 }
 function pushOut(P) {
   for (const k of HULL) {
@@ -514,7 +516,7 @@ const bx = (w, h, d, m) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m), cy
   const tm = bx(.7, .06, 1.7, Mt.rubber); loc(G, .5, PI, G.Rf - .05, tm); loc(G, .5, PI, G.Rf - .18, bx(.9, .08, 1.9, Mt.dark));
   [-.4, .4].forEach(x => { const r = cy(.02, 1.2, Mt.steel, 6); const m = loc(G, .5, PI, G.Rf - .55, r); m.position.x += x * Math.cos(PI); r.rotation.x = PI / 2 * 0; });
   const fl = cy(.28, .16, Mt.steel, 20); fl.rotation.z = PI / 2; loc(G, -3.5, PI / 2, G.Rf - .4, fl); loc(G, -3.5, PI / 2, G.Rf - .8, bx(.3, .1, .4, Mt.rubber));
-  const H = TUBES.hub; liveScreen(H, -1.3, 5 * PI / 4, H.Rf - .01, 1, .6, dComms); liveScreen(H, -2.6, 5 * PI / 4, H.Rf - .01, 1, .6, dOrbit); loc(H, -1.9, 5 * PI / 4, H.Rf - .25, bx(1.5, .1, .4, Mt.dark));
+  const H = TUBES.hub; liveScreen(H, -1.3, 7 * PI / 4, H.Rf - .01, 1, .6, dComms); liveScreen(H, -2.6, 7 * PI / 4, H.Rf - .01, 1, .6, dOrbit); loc(H, -1.9, 7 * PI / 4, H.Rf - .25, bx(1.5, .1, .4, Mt.dark));
   const E = TUBES.eng; liveScreen(E, 3.2, 0, E.Rf - .01, 1.2, .6, dEng);
   [-.45, 0, .45].forEach(x => { const p = cy(.14, 1.1, Mt.glowB, 14); p.rotation.x = PI / 2; const m = loc(E, 2.4, 0, E.Rf - .3, p); m.position.x = x; });
   for (let i = 0; i < 6; i++) { const b = loc(E, -3.2 + (i % 3 - 1) * .3, PI, E.Rf - .08, bx(.5, .26, .12, i % 2 ? Mt.glowG : Mt.glowA)); b.position.x += (i < 3 ? -.4 : .4); }
@@ -564,6 +566,7 @@ function pose(c, p, t, spd) {
   else if (p === 'talk') { lean = .05; ax = -.55 + s(t * 3.4) * .2; ex = -.8 + s(t * 2.6) * .15; hx = .18; kx = .3; }
   else if (p === 'eva') { lean = .04; ax = -1; az = .25; ex = -.4; hx = .15; kx = .2; }
   if (p === 'sleep') { lean = 0; c.aL.sh.rotation.set(-.7, 0, -.5); c.aR.sh.rotation.set(-.7, 0, .5); c.aL.el.rotation.x = c.aR.el.rotation.x = -1.6; c.lL.hp.rotation.set(0, 0, 0); c.lR.hp.rotation.set(0, 0, 0); c.lL.kn.rotation.x = c.lR.kn.rotation.x = 0; c.torso.rotation.x = 0; c.head.rotation.set(.1, 0, 0); return; }
+  if (p === 'walk') { const q = s(t * 6.5); c.lL.hp.rotation.set(q * .55, 0, hz); c.lR.hp.rotation.set(-q * .55, 0, -hz); c.lL.kn.rotation.x = Math.max(0, -q) * .7 + .1; c.lR.kn.rotation.x = Math.max(0, q) * .7 + .1; J(c.aL, -q * .45, .12); J(c.aR, q * .45, -.12); c.aL.el.rotation.x = c.aR.el.rotation.x = -.3; c.torso.rotation.x = .05; c.head.rotation.set(0, 0, 0); return; }
   if (p === 'run') { const q = s(t * 8); c.lL.hp.rotation.set(q * .9, 0, hz); c.lR.hp.rotation.set(-q * .9, 0, -hz); c.lL.kn.rotation.x = Math.max(0, -q) * 1.1 + .2; c.lR.kn.rotation.x = Math.max(0, q) * 1.1 + .2; J(c.aL, -q * .8, .1); J(c.aR, q * .8, -.1); c.aL.el.rotation.x = c.aR.el.rotation.x = -.9; c.torso.rotation.x = .1; return; }
   if (p === 'bike') { const q = t * 6; c.lL.hp.rotation.set(-.9 + s(q) * .45, 0, hz); c.lR.hp.rotation.set(-.9 + s(q + PI) * .45, 0, -hz); c.lL.kn.rotation.x = 1.2 - s(q) * .5; c.lR.kn.rotation.x = 1.2 - s(q + PI) * .5; J(c.aL, -1.1, .1); J(c.aR, -1.1, -.1); c.aL.el.rotation.x = c.aR.el.rotation.x = -.4; c.torso.rotation.x = .25; return; }
   c.torso.rotation.x = lean; c.head.rotation.x = -lean * .6; c.head.rotation.y = s(t * .5) * .15;
@@ -588,7 +591,7 @@ const ST = [
   { id: 'eat', t: 'crew', a: -3.6, th: 0, tag: 'GALLEY', verb: 'Eat a meal', dur: 3, eff: { food: 38, mor: 3 }, col: 0xffc247, done: 'Rehydrated stew. Not bad for a pouch.' },
   { id: 'zzz', t: 'crew', a: 5.2, th: PI, tag: 'SLEEP STATION', verb: 'Sleep', dur: 8, eff: { nrg: 62, hp: 4, mor: 2 }, slow: true, col: 0xa98bff, done: 'Strapped in and slept. Nothing falls, so nothing wakes you.' },
   { id: 'gym', t: 'gym', a: .5, th: PI, tag: 'TREADMILL', verb: 'Exercise', dur: 5, eff: { hp: 14, nrg: -11, food: -7, mor: 5 }, col: 0x4fd1a0, done: 'Two hours on the harness. Your bones thank you.' },
-  { id: 'com', t: 'hub', a: -1.5, th: 5 * PI / 4, tag: 'COMMS', verb: 'Call home', dur: 4, eff: { mor: 22 }, cool: 45, col: 0xff8a1f, done: 'Call home: the dog barked at the screen.' },
+  { id: 'com', t: 'hub', a: -1.5, th: 7 * PI / 4, tag: 'COMMS', verb: 'Call home', dur: 4, eff: { mor: 22 }, cool: 45, col: 0xff8a1f, done: 'Call home: the dog barked at the screen.' },
   { id: 'cup', tag: 'CUPOLA', verb: 'Watch Earth', dur: 3, eff: { mor: 9 }, col: 0x59b8ff, tgt: V(0, 0, 8.7), pos: V(0, 0, 6.3), cone: .75, rng: 5, done: 'Thunderstorms over the Pacific. A quiet moment.' },
   { id: 'eva', tag: 'AIRLOCK', verb: 'Suit up for a spacewalk', dur: 6, eff: { nrg: -4 }, need: 40, eva: true, col: 0xffffff, tgt: V(0, 0, -8.4), pos: V(0, 0, -7), cone: .6, rng: 4, done: '' },
   { id: 'o2', t: 'eng', a: 3.2, th: 0, tag: 'CO₂ SCRUBBER', verb: 'Swap scrubber bed', dur: 4, eff: { o2: 32, nrg: -4 }, col: 0x59b8ff, done: 'Fresh scrubber bed in. Cabin air is clean.' },
@@ -640,14 +643,15 @@ const SPOTS = {
   lab: [spot('lab', -4.6, 0, 'work'), spot('lab', .5, PI, 'work'), spot('lab', 4, 3 * PI / 2, 'work')],
   gym: [spot('gym', .5, PI, 'run')], bike: [spot('gym', -3.5, PI / 2, 'bike')],
   galley: [spot('crew', -3.6, -.6, 'eat'), spot('crew', -3.6, .6, 'eat'), spot('crew', -3.6, 0, 'eat')],
-  comms: [spot('hub', -.3, 5 * PI / 4, 'talk')],
+  comms: [spot('hub', -.3, 7 * PI / 4, 'talk')],
   window: [{ t: 'cup', pos: V(.8, 0, 6.5), up: V(0, 1, 0), fwd: V(0, 0, 1), pose: 'idle' }, { t: 'cup', pos: V(-.8, 0, 6.5), up: V(0, 1, 0), fwd: V(0, 0, 1), pose: 'idle' }],
   eng: [spot('eng', 4.4, 0, 'work'), spot('eng', -4.4, PI, 'work')]
 };
 BUNK.forEach((b, i) => { const t = TUBES[b.t], rh = rdir(t, b.th); SPOTS['bunk' + i] = [{ t: 'crew', pos: tp(t, b.a, b.th, t.Rf - .62), up: V(0, 1, 0), fwd: rh.clone().negate(), pose: 'sleep' }]; });
 let S, state = 'loading', last = 0;
 const Pl = { pos: V(0, 0, 0), vel: V(0, 0, 0) }, cam = { yaw: PI / 2, pitch: 0, roll: 0, shake: 0, oy: 0, dist: 64 };
-const keys = { fwd: 0, back: 0, left: 0, right: 0, rise: 0, sink: 0, rl: 0, rr: 0, brake: 0 };
+let moveMode = 'normal', camOff = 0; const eye = V(0, 0, 0);
+const keys = { sprint: 0, fwd: 0, back: 0, left: 0, right: 0, rise: 0, sink: 0, rl: 0, rr: 0, brake: 0 };
 const flashEl = $('flash');
 const clock = () => pad2(Math.floor(S.h % 24)) + ':' + pad2(Math.floor((S.h * 60) % 60));
 function addLog(t) { S.log.unshift({ c: 'D' + S.day + ' ' + clock(), t }); if (S.log.length > 6) S.log.pop(); }
@@ -656,7 +660,7 @@ function addm(k, v) { if (k === 'sci') S.sci += v; else S.m[k] = clamp(S.m[k] + 
 function reset() {
   clearWorld();
   S = { h: START_H, m: { o2: 100, pow: 100, food: 80, nrg: 90, hp: 100, mor: 80 }, sci: 0, packs: 10, act: null, faults: [], nextF: 14, cd: {}, log: [], st: { fixed: 0, meals: 0, evas: 0, calls: 0 }, day: 1, t: 0, flashT: 0, cargoT: -1, npcs: [], eva: null, hatchOpen: 0, hatchT: 0 };
-  Pl.pos.set(0, 0, 0); Pl.vel.set(0, 0, 0); cam.yaw = PI / 2; cam.pitch = 0; cam.roll = 0;
+  Pl.pos.set(0, moveMode === 'normal' ? -2.4 : 0, moveMode === 'normal' ? 1.7 : 0); Pl.vel.set(0, 0, 0); Pl.ground = false; Pl.shaft = false; camOff = moveMode === 'normal' ? 1.15 : 0; eye.copy(Pl.pos); eye.y += camOff; cam.yaw = PI / 2; cam.pitch = 0; cam.roll = 0;
   NPC_DEF.forEach((d, i) => {
     const mod = makeCrew({ shirt: d.shirt, skin: d.skin, hair: d.hair, name: d.short.toUpperCase(), col: d.col, hairStyle: d.hairStyle }), bs = SPOTS['bunk' + d.bunk][0];
     const n = { def: d, mod, pos: bs.pos.clone(), room: 'crew', state: 'act', path: [], goal: { kind: 'sleep', spot: bs, dur: 99, label: 'Sleeping' }, at: 0, chat: 0, cd: 0, lastMeal: -99, sayT: 0, pose: 'sleep', last: '', up: V(0, 1, 0), fwd: bs.fwd.clone() };
@@ -682,7 +686,7 @@ const fwdV = () => V(0, 0, -1).applyQuaternion(camQ);
 function npcOffer(n) { const r = n.def.role; if (n.cd > 0) return { why: n.def.short + ' is busy for ' + Math.ceil(n.cd) + 's' }; return { verb: r === 'eng' ? 'Chat with ' + n.def.short + ' (morale)' : r === 'doc' ? 'Health check with ' + n.def.short : 'Compare notes with ' + n.def.short + ' (science)' }; }
 function findTarget() {
   const fw = fwdV(); let best = null, bs = 1e9;
-  const test = (kind, ref, pt, cone, rg) => { const d = pt.clone().sub(Pl.pos), dist = d.length(); if (dist > rg || dist < .05) return; const ang = Math.acos(clamp(d.dot(fw) / dist, -1, 1)); if (ang > cone) return; const sc = ang + dist * .06; if (sc < bs) { bs = sc; best = { kind, ref, dist }; } };
+  const test = (kind, ref, pt, cone, rg) => { const d = pt.clone().sub(eye), dist = d.length(); if (dist > rg || dist < .05) return; const ang = Math.acos(clamp(d.dot(fw) / dist, -1, 1)); if (ang > cone) return; const sc = ang + dist * .06; if (sc < bs) { bs = sc; best = { kind, ref, dist }; } };
   if (S.eva) { S.eva.pts.forEach(p => { if (!p.done) test('ep', p, p.pos, .7, 3.6); }); test('hatch', null, V(0, 0, -9.7), .9, 4.2); return best; }
   ST.forEach(s => test('st', s, s.tgt, s.cone, s.rng)); S.faults.forEach(f => test('fx', f, f.pos, .6, 3.4)); S.npcs.forEach(n => test('npc', n, n.pos.clone().add(V(0, .35, 0)), .5, 3.0));
   return best;
@@ -785,11 +789,19 @@ function update(dt) {
   if (S.act && S.act.pt && Pl.pos.distanceTo(S.act.pt) > 5.5) S.act = null;
   if (cam.shake > 0) cam.shake -= dt;
   if (keys.rl || keys.rr) cam.roll += (keys.rl - keys.rr) * 1.4 * dt; else cam.roll *= Math.exp(-.7 * dt);
-  if (!S.act && moving) { const f = V(0, 0, -1).applyQuaternion(camQ), r = V(1, 0, 0).applyQuaternion(camQ), u = V(0, 1, 0).applyQuaternion(camQ); const acc = f.multiplyScalar(az).addScaledVector(r, ax).addScaledVector(u, ay); if (acc.lengthSq() > 0) { acc.normalize().multiplyScalar(6.5); Pl.vel.addScaledVector(acc, dt); } }
-  const mx = S.eva ? 4.2 : 3.4, sp = Pl.vel.length(); if (sp > mx) Pl.vel.multiplyScalar(mx / sp);
-  Pl.vel.multiplyScalar(Math.exp(-(keys.brake ? 4.5 : S.act ? 3 : .55) * dt)); Pl.pos.addScaledVector(Pl.vel, dt);
-  if (S.eva) { pushOut(Pl); const tv = Pl.pos.clone().sub(V(0, 0, -9.5)); if (tv.length() > 36) { tv.setLength(36); Pl.pos.copy(tv).add(V(0, 0, -9.5)); Pl.vel.multiplyScalar(.2); } } else resolve(Pl);
-  const sleeping = S.act && S.act.kind === 'st' && S.act.ref.slow, gh = dt * RTH * (sleeping ? 4 : 1); S.h += gh; const m = S.m;
+  const walk = moveMode === 'normal' && !S.eva, spd = (S.eva ? 4 : 3.2) * (keys.sprint ? 1.7 : 1), want = V(0, 0, 0); Pl.normal = walk;
+  if (walk) {
+    cam.roll *= Math.exp(-8 * dt); const sy = Math.sin(cam.yaw), cy = Math.cos(cam.yaw); Pl.shaft = inShaft(Pl.pos);
+    if (Pl.shaft) { if (!S.act && moving) { want.copy(V(0, 0, -1).applyQuaternion(camQ)).multiplyScalar(az).addScaledVector(V(cy, 0, -sy), ax).add(V(0, ay, 0)); if (want.lengthSq() > 0) want.normalize().multiplyScalar(spd * .85); } Pl.vel.lerp(want, 1 - Math.exp(-10 * dt)); }
+    else { if (!S.act && (ax || az)) want.copy(V(-sy, 0, -cy)).multiplyScalar(az).addScaledVector(V(cy, 0, -sy), ax).normalize().multiplyScalar(spd); const k = 1 - Math.exp(-(Pl.ground ? 12 : 1.6) * dt); Pl.vel.x = lerp(Pl.vel.x, want.x, k); Pl.vel.z = lerp(Pl.vel.z, want.z, k); Pl.vel.y -= 9.5 * dt; if (Pl.ground && keys.rise && !S.act) Pl.vel.y = 3.9; }
+    Pl.ground = false; Pl.pos.addScaledVector(Pl.vel, dt); resolve(Pl);
+  } else {
+    if (!S.act && moving) { const f = V(0, 0, -1).applyQuaternion(camQ), r = V(1, 0, 0).applyQuaternion(camQ), u = V(0, 1, 0).applyQuaternion(camQ); want.copy(f).multiplyScalar(az).addScaledVector(r, ax).addScaledVector(u, ay); if (want.lengthSq() > 0) want.normalize().multiplyScalar(spd); }
+    Pl.vel.lerp(want, 1 - Math.exp(-(moveMode === 'real' ? 1.1 : 5) * dt)); Pl.pos.addScaledVector(Pl.vel, dt);
+    if (S.eva) { pushOut(Pl); const tv = Pl.pos.clone().sub(V(0, 0, -9.5)); if (tv.length() > 36) { tv.setLength(36); Pl.pos.copy(tv).add(V(0, 0, -9.5)); Pl.vel.multiplyScalar(.2); } } else resolve(Pl);
+  }
+  camOff = lerp(camOff, walk && !Pl.shaft ? 1.15 : 0, 1 - Math.exp(-6 * dt)); eye.copy(Pl.pos); eye.y += camOff;
+  const sleeping = S.act && S.act.kind === 'st' && S.act.ref.slow, sk = Math.min(S.skipH || 0, dt * 3), gh = dt * RTH * (sleeping ? 4 : 1) + sk; S.skipH = (S.skipH || 0) - sk; S.h += gh; const m = S.m;
   m.o2 -= 1.9 * gh; m.pow -= 1.5 * gh; m.food -= 2.0 * gh; if (!sleeping) m.nrg -= 2.2 * gh; m.hp -= .35 * gh; m.mor -= .9 * gh;
   for (const f of S.faults) { m[f.t.k] -= f.t.rate * gh; m.mor -= .5 * gh; }
   if (m.o2 <= 0 || m.pow <= 0 || m.food <= 0 || m.nrg <= 0) m.hp -= 5 * gh; if (m.mor <= 0) m.hp -= 1.5 * gh;
@@ -872,18 +884,21 @@ function animateWorld(dt) {
 let tp3 = false;
 const avatar = makeCrew({ shirt: 0x24476f, skin: 0xb98a63, hair: 0x2a1d14, name: 'YOU', col: '#ff8a1f' }); avatar.root.visible = false; scene.add(avatar.root); avatar.evaOn = false;
 function setView(v) { tp3 = v; $('viewBtn').textContent = 'View: ' + (v ? '3rd person' : '1st person'); }
+function setMove(m) { moveMode = m; $('moveBtn').textContent = 'Move: ' + (m === 'normal' ? 'Normal' : 'Realistic'); if (S) Pl.vel.multiplyScalar(.4); }
+$('moveBtn').addEventListener('click', e => { setMove(moveMode === 'normal' ? 'real' : 'normal'); e.currentTarget.blur(); });
 $('viewBtn').addEventListener('click', e => { setView(!tp3); e.currentTarget.blur(); });
 function updateCamera(dt) {
   const play = state === 'play' || state === 'pause';
   hands.visible = state === 'play' && !tp3; avatar.root.visible = play && tp3;
   if (play) {
-    if (camera.fov !== 72) { camera.fov = 72; camera.updateProjectionMatrix(); } camera.position.copy(Pl.pos); camE.set(cam.pitch + Math.sin(S.t * .7) * .004, cam.yaw, cam.roll, 'YXZ'); camera.quaternion.setFromEuler(camE);
+    if (camera.fov !== 72) { camera.fov = 72; camera.updateProjectionMatrix(); } camera.position.copy(eye); camE.set(cam.pitch + Math.sin(S.t * .7) * .004, cam.yaw, cam.roll, 'YXZ'); camera.quaternion.setFromEuler(camE);
     if (tp3) {
-      const f = V(0, 0, -1).applyQuaternion(camQ.setFromEuler(camE)), u = V(0, 1, 0).applyQuaternion(camQ), cp = Pl.pos.clone().addScaledVector(f, S.eva ? -3.6 : -2.3).addScaledVector(u, .3);
+      const f = V(0, 0, -1).applyQuaternion(camQ.setFromEuler(camE)), u = V(0, 1, 0).applyQuaternion(camQ), cp = eye.clone().addScaledVector(f, S.eva ? -3.6 : -2.3).addScaledVector(u, .3);
       if (!S.eva) { const q = V(0, 0, 0); if (projectIn(cp, q) > 1e-4) cp.copy(q); } camera.position.copy(cp);
       if (avatar.evaOn !== !!S.eva) { avatar.evaOn = !!S.eva; avatar.eva(avatar.evaOn); }
-      orientTo(avatar.root, u, f, 1 - Math.exp(-12 * dt)); avatar.root.position.copy(Pl.pos).addScaledVector(u, -.78);
-      let p = 'idle'; if (S.act) { const a = S.act; p = a.kind === 'talk' ? 'talk' : a.kind === 'st' ? ({ gym: 'run', eat: 'eat' }[a.ref.id] || 'work') : 'work'; if (a.kind === 'st' && a.ref.id === 'gym') p = 'bike'; } else if (Pl.vel.length() > .5) p = 'move';
+      const wk = moveMode === 'normal' && !S.eva, ff = wk ? V(-Math.sin(cam.yaw), 0, -Math.cos(cam.yaw)) : f, uu = wk ? V(0, 1, 0) : u;
+      orientTo(avatar.root, uu, ff, 1 - Math.exp(-12 * dt)); avatar.root.position.copy(eye).addScaledVector(uu, wk && !Pl.shaft ? -.95 : -.78);
+      let p = 'idle'; if (S.act) { const a = S.act; p = a.kind === 'talk' ? 'talk' : a.kind === 'st' ? ({ gym: 'run', eat: 'eat' }[a.ref.id] || 'work') : 'work'; if (a.kind === 'st' && a.ref.id === 'gym') p = 'bike'; } else if (wk && !Pl.shaft) { if (Math.hypot(Pl.vel.x, Pl.vel.z) > .5 && Pl.ground) p = 'walk'; } else if (Pl.vel.length() > .5) p = 'move';
       pose(avatar, p, S.t, 1);
     }
     if (cam.shake > 0) { camera.position.x += rand(-1, 1) * cam.shake * .06; camera.position.y += rand(-1, 1) * cam.shake * .06; }
@@ -903,12 +918,20 @@ function overlays() {
 }
 /* ---------- states ---------- */
 let locked = false, wasLocked = false;
-function lockPointer() { if (coarse || !cv.requestPointerLock) return; try { const p = cv.requestPointerLock(); if (p && p.catch) p.catch(() => {}); } catch (e) { /* optional */ } }
+const PLAYER_API = ''; // set to a URL returning JSON like {"players": 42} to show the live worldwide count
+let onlineT = 0;
+async function ctrlD() {
+  S.skipH = (S.skipH || 0) + 3; const el = $('online'); el.hidden = false; el.textContent = 'Skipping 3 hours...'; clearTimeout(onlineT);
+  let line = 'Worldwide players: not connected (a static page cannot count other players without a server)';
+  if (PLAYER_API) { try { const r = await fetch(PLAYER_API, { cache: 'no-store' }); const j = await r.json(); line = 'Players online worldwide: ' + j.players; } catch (x) { line = 'Worldwide players: could not reach the player counter'; } }
+  el.textContent = '+3 hours skipped · ' + line; onlineT = setTimeout(() => { el.hidden = true; }, 5000);
+}
+function lockPointer() { if (coarse || !cv.requestPointerLock) return; try { let p; try { p = cv.requestPointerLock({ unadjustedMovement: true }); } catch (e) { p = cv.requestPointerLock(); } if (p && p.catch) p.catch(() => { try { cv.requestPointerLock(); } catch (e) { /* optional */ } }); } catch (e) { /* optional */ } }
 function begin() { initAudio(); reset(); faultLights.forEach(l => { l.used = false; l.intensity = 0; }); state = 'play'; ov.hidden = true; last = performance.now(); hud(); lockPointer(); }
 function intro() {
   reset(); state = 'intro'; hud();
   overlay('<h2>Five days aboard Meridian Station</h2><p>You share the station with three crewmates: Commander Okafor, flight surgeon Dr. Lindqvist and biologist Ito. Keep the air breathable and the power on, look after yourself, and run experiments until the crew has logged ' + GOAL + ' science points before the relief crew arrives on day 6.</p>' +
-    '<p class="dim">You fly in zero gravity: there is no floor, so go anywhere you look. Move the mouse to look around (click the view if your browser asks you to capture it); on a touch screen, drag to look. Fly up to a glowing ring, aim at it and press E. Alarms flash red on the schematic and the direction finder. Okafor repairs alarms eventually, but slowly. Spacewalks go out through the airlock.</p>', 'Begin mission', begin);
+    '<p class="dim">Normal movement walks on the floor with gravity: WASD to walk, Space to jump, Shift to sprint. In tall shafts and on the central ladder of the hub you climb in the direction you look (C goes down). Press G for Realistic zero-gravity drifting. Move the mouse to look around (click the view if your browser asks you to capture it); on a touch screen, drag to look. Fly up to a glowing ring, aim at it and press E. Alarms flash red on the schematic and the direction finder. Okafor repairs alarms eventually, but slowly. Spacewalks go out through the airlock.</p>', 'Begin mission', begin);
 }
 function finish(ok, why) {
   state = 'end'; if (document.exitPointerLock) document.exitPointerLock(); $('fade').className = ''; const sci = Math.floor(S.sci); let title, msg;
@@ -920,11 +943,12 @@ function pause(on) {
   else if (!on && state === 'pause') { state = 'play'; ov.hidden = true; last = performance.now(); lockPointer(); }
 }
 /* ---------- input ---------- */
-const KM = { w: 'fwd', W: 'fwd', ArrowUp: 'fwd', s: 'back', S: 'back', ArrowDown: 'back', a: 'left', A: 'left', ArrowLeft: 'left', d: 'right', D: 'right', ArrowRight: 'right', ' ': 'rise', c: 'sink', C: 'sink', q: 'rl', Q: 'rl', r: 'rr', R: 'rr', x: 'brake', X: 'brake' };
+const KM = { w: 'fwd', W: 'fwd', ArrowUp: 'fwd', s: 'back', S: 'back', ArrowDown: 'back', a: 'left', A: 'left', ArrowLeft: 'left', d: 'right', D: 'right', ArrowRight: 'right', ' ': 'rise', c: 'sink', C: 'sink', Shift: 'sprint' };
 addEventListener('keydown', e => {
   if (e.key === 'p' || e.key === 'P' || e.key === 'Escape') { if (state === 'play') pause(true); else if (state === 'pause') pause(false); return; }
   if (state !== 'play') return; const k = KM[e.key];
-  if (e.key === 'v' || e.key === 'V') { setView(!tp3); } else if (k) { keys[k] = 1; e.preventDefault(); } else if ((e.key === 'e' || e.key === 'E' || e.key === 'f' || e.key === 'F') && !e.repeat) { e.preventDefault(); pressAct(); }
+  if (e.ctrlKey && (e.key === 'd' || e.key === 'D')) { e.preventDefault(); if (state === 'play') ctrlD(); return; }
+  if (e.key === 'v' || e.key === 'V') { setView(!tp3); } else if (e.key === 'g' || e.key === 'G') { setMove(moveMode === 'normal' ? 'real' : 'normal'); } else if (k) { keys[k] = 1; e.preventDefault(); } else if ((e.key === 'e' || e.key === 'E' || e.key === 'f' || e.key === 'F') && !e.repeat) { e.preventDefault(); pressAct(); }
 });
 addEventListener('keyup', e => { const k = KM[e.key]; if (k) keys[k] = 0; });
 addEventListener('blur', () => { for (const k in keys) keys[k] = 0; if (state === 'play') pause(true); });
@@ -933,6 +957,7 @@ document.addEventListener('pointerlockchange', () => { locked = document.pointer
 function look(dx, dy, k) { cam.yaw -= dx * k; cam.pitch = clamp(cam.pitch - dy * k, -1.52, 1.52); }
 document.addEventListener('mousemove', e => { if (locked && state === 'play') look(e.movementX, e.movementY, .0022); });
 cv.addEventListener('mousemove', e => { if (!locked && !coarse && state === 'play') look(e.movementX || 0, e.movementY || 0, .0022); });
+['pointerdown', 'keydown'].forEach(t => document.addEventListener(t, () => { if (state === 'play' && !locked && !coarse && !document.pointerLockElement) lockPointer(); }, true));
 cv.addEventListener('mouseenter', () => { if (state === 'play' && !coarse) lockPointer(); });
 let drag = null;
 cv.addEventListener('pointerdown', e => { if (state !== 'play') return; if (!locked && !coarse && e.pointerType === 'mouse') lockPointer(); drag = { x: e.clientX, y: e.clientY }; try { cv.setPointerCapture(e.pointerId); } catch (x) { /* ignore */ } });
@@ -956,5 +981,5 @@ setTimeout(() => {
 }, 60);
 })();
 </script>
-</body>
-</html>
+
+</body></html>
